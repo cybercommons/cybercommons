@@ -12,7 +12,7 @@ services:
       - cc_mongo:/data/db
       - ./dc_config/ssl/backend:/ssl
   cybercom_rabbitmq:
-    image: rabbitmq:3.6
+    image: rabbitmq
     restart: unless-stopped
     env_file:
       - dc_config/cybercom_config.env
