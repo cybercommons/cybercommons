@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source cybercom_config.env
+
 #generate keys for nginx
 # SSL has not been configured for nginx - to force generation of keys, uncomment the following lines:
 #docker run -it --rm --name testetag_openssl \
@@ -9,7 +11,7 @@
 #generate keys for message broker, mongodb, and clients
 docker run -it --rm \
   -v $PWD/ssl/backend:/ssl \
-  -e "CA_EXPIRE=3650" \
-  -e "KEY_SECRET=testing" \
+  -e "CA_EXPIRE=$CA_EXPIRE" \
+  -e "KEY_SECRET=$KEY_SECRET" \
   cybercom/openssl ./ssl/generate
 
