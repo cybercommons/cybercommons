@@ -1,4 +1,8 @@
-docker_config
+# Do not include docker configs in built images
+dc_config
+dockerfile
+./*.yml
+
 startMongo
 # Byte-compiled / optimized / DLL files
 __pycache__/
