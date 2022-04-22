@@ -1,5 +1,5 @@
 celery==5.2.2
-Django==3.2.12
+Django==3.2.13
 #django-filter==2.4.0
 django-settings-export==1.2.1
 djangorestframework==3.13.1
