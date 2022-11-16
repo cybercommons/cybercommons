@@ -17,6 +17,8 @@ from rest_framework_yaml.renderers import YAMLRenderer
 from rest_framework.parsers import JSONParser
 from .permission import  DataStorePermission, createDataStorePermission
 from celery import Celery
+from bson import ObjectId
+from bson.errors import InvalidId
 
 
 class celeryConfig:
@@ -165,11 +167,27 @@ class DataStore(APIView):
         return Response(data)
 
     def post(self, request, database=None, collection=None, format=None):
-        try:
-            result = MongoDataInsert(self.db, database, collection, request.data)
-            return Response(result)
-        except Exception as e:
-            raise ValidationError({"data":"Error inserting data, If '_id' is within data, please check '_id' duplication.","error":str(e)})
+        data = request.data
+        if isinstance(data, list) and any([record.get("_id") for record in data]):  # The underlying upsert functionality does not properly handle multiple items with existing _id fields
+            raise ValidationError({"data": "Error Updating data", "error": "Multiple records in a single request is not supported."})
+        existing_id = data.get("_id") if not isinstance(data, list) else None
+        if existing_id:
+            _id = ObjectId(existing_id)  # wrapping ObjectId has no negative effect
+            try:
+                data["_id"] = _id
+            except InvalidId:
+                raise ValidationError({"data": "Invalid '_id' used, must be 24-character hex string or omit '_id' to create new record", "error": "Invalid '_id'"})
+            try:
+                result = MongoDataSave(self.db, database, collection, _id, data)
+            except Exception as e:
+                raise ValidationError({"data": "Error updating data.", "error": str(e)})
+        else:
+            try:
+                result = MongoDataInsert(self.db, database, collection, request.data)
+            except Exception as e:
+                raise ValidationError({"data": "Error inserting data, If '_id' is within data, please check '_id' duplication.", "error": str(e)})
+        return Response(result)
+
 
 class DataStoreDetail(APIView):
     permission_classes = (DataStorePermission,) #DjangoModelPermissionsOrAnonReadOnly,)

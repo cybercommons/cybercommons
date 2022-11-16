@@ -176,7 +176,9 @@ def MongoDataDelete(DB_MongoClient, database, collection,id):
 def MongoDataSave(DB_MongoClient, database, collection,id,data):
     db = DB_MongoClient
     term_id=get_id(id)
-    if db[database][collection].find_one({'_id':term_id}):
+    match = db[database][collection].find_one({'_id':term_id})
+    if match:
+        data["_id"] = match["_id"]
         return db[database][collection].save(data)
     else:
         return {"Error":"UNABLE TO UPDATE: DATA RECORD NOT FOUND"}
@@ -184,7 +186,7 @@ def MongoDataSave(DB_MongoClient, database, collection,id,data):
 def is_number(n):
     try:
         float(n)
-    except ValueError:
+    except (ValueError, TypeError):
         return False
     else:
         return True
