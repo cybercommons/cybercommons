@@ -8,9 +8,9 @@ from catalog.views import Catalog,CatalogData, CatalogDataDetail # SourceList, S
 
 urlpatterns = [
      path('data/', Catalog.as_view(),name='catalog-list'),
-     re_path('data/(?P<database>[^/]+)/$',Catalog.as_view(),name='catalog-list'),
-     re_path('data/(?P<database>[^/]+)/(?P<collection>[^/]+)/$',CatalogData.as_view(),name='catalog-detail'),
-     re_path('data/(?P<database>[^/]+)/(?P<collection>[^/]+)/(?P<id>[^/]+)/$', CatalogDataDetail.as_view(),
+     re_path(r'data/(?P<database>[^/]+)/$',Catalog.as_view(),name='catalog-list'),
+     re_path(r'data/(?P<database>[^/]+)/(?P<collection>[^/]+)/$',CatalogData.as_view(),name='catalog-detail'),
+     re_path(r'data/(?P<database>[^/]+)/(?P<collection>[^/]+)/(?P<id>[^/]+)/$', CatalogDataDetail.as_view(),
              name='catalog-detail-id'),
 ]
 

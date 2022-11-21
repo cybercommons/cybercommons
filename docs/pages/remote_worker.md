@@ -65,7 +65,7 @@ The execution units, called tasks, are executed concurrently on a single or more
     }
 
 
-    result_backend = "mongodb://<username>:<password>@<mongo_host>:<mongo_port>/?ssl=true&ssl_ca_certs=ssl/cacert.pem>&ssl_certfile=mongodb.pem>"
+    result_backend = "mongodb://<username>:<password>@<mongo_host>:<mongo_port>/?ssl=true&tlsCAFile=ssl/cacert.pem>&tlsCertificateKeyFile=mongodb.pem>"
 
     mongodb_backend_settings = {
         "database": "<application_short_name>",

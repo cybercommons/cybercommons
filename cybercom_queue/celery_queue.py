@@ -4,8 +4,8 @@ import pickle  #nosec
 import collections
 import json
 import logging
-import memcache
 
+from django.core.cache import cache
 from pymongo import DESCENDING
 from rest_framework.reverse import reverse
 from collections import OrderedDict
@@ -51,9 +51,7 @@ class QueueTask():
         self.memcache=check_memcache()
         self.i = app.control.inspect()
         if self.memcache:
-            self.memcache_client = memcache.Client(
-                ['%s:%s' % (config.MEMCACHE_HOST, config.MEMCACHE_PORT)]
-                )
+            self.memcache_client = cache
         else:
             self.memcache_client = None
             logging.warn("Could not connect to memcache server!") 
@@ -78,7 +76,7 @@ class QueueTask():
             'timestamp': datetime.now(),
             'tags': tags
         }
-        self.db[self.database][self.collection].insert(task_log)
+        self.db[self.database][self.collection].insert_one(task_log)
 
         return {"task_id": task_obj.task_id}
 
@@ -202,13 +200,13 @@ class QueueTask():
         history = []
         if task_name:
             tasks_list=task_name.split(',')
-            result['count'] = col.find(
-                {'task_name': {"$in":tasks_list}, 'user.username': user}).count()
+            result['count'] = col.count_documents(
+                {'task_name': {"$in":tasks_list}, 'user.username': user})
             data = col.find({'task_name': {"$in":tasks_list}, 'user.username': user}, {'_id': False}, skip=(page - 1) * limit,
                             limit=limit).sort('timestamp', DESCENDING)
         else:
             data = col.find({'user.username': user}, {'_id': False}, skip=(page - 1) * limit, limit=limit).sort('timestamp',DESCENDING)
-            result['count'] = col.find({'user.username': user}).count()
+            result['count'] = col.count_documents({'user.username': user})
         if result['count'] <= page*limit:
             if page != 1:
                 result['previous'] = "%s?page=%d&page_size=%d" % (

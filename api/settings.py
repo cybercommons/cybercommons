@@ -12,6 +12,7 @@ from api import config
 import os
 import secrets
 
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,6 +28,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 # wild card '*.example.edu'
 SESSION_COOKIE_DOMAIN = None
 CSRF_COOKIE_DOMAIN = None
+
+# Set CSRF trusted origin if running in gitpod.io
+GITPODID = os.getenv('GITPOD_WORKSPACE_ID')
+if GITPODID:
+    GITPODPORT = os.getenv('GITPOD_PORT')
+    GITPODHOST = os.getenv("GITPOD_WORKSPACE_CLUSTER_HOST")
+    GITPODURL = f"{GITPODPORT}-{GITPODID}.{GITPODHOST}"
+    CSRF_TRUSTED_ORIGINS = [GITPODURL]
 
 # If you want to mount API with nginx with location other than /
 # Change to desired url - '/api/'
@@ -121,7 +130,7 @@ TEMPLATES = [
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
         'LOCATION': f'{config.MEMCACHE_HOST}:{config.MEMCACHE_PORT}',
     }
 }

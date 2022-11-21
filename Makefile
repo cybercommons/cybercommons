@@ -8,13 +8,30 @@ endif
 	@cp dc_config/secrets_template.env dc_config/secrets.env
 	@$${EDITOR:-nano} dc_config/secrets.env
 
+
 include dc_config/cybercom_config.env
 include dc_config/secrets.env
 
-COMPOSE_INIT = docker-compose -f dc_config/images/docker-compose-init.yml
-CERTBOT_INIT = docker-compose -f dc_config/images/certbot-initialization.yml
+# Set GITPOD_PORT to 8080 if run in gitpod
+ifneq ($(strip $(GITPOD_WORKSPACE_ID)),)
+	GITPOD_PORT = 8080
+	ALLOWED_HOSTS = .gitpod.io,localhost
+endif
 
-.PHONY: init intidb initssl superuser init_certbot renew_certbot shell apishell dbshell build force_build run stop test restart_api collectstatic
+ifeq ($(strip $(shell docker compose 1>/dev/null && echo 0)),0)
+	COMPOSE := docker compose
+else
+	COMPOSE := docker-compose
+endif
+
+COMPOSE_INIT = $(COMPOSE) -f dc_config/images/docker-compose-init.yml
+CERTBOT_INIT = $(COMPOSE) -f dc_config/images/certbot-initialization.yml
+DJANGO_MANAGE = $(COMPOSE) run --rm cybercom_api ./manage.py
+
+SHELL = /bin/bash
+
+.PHONY: init intidb initssl cert_dates superuser migrate flush init_certbot renew_certbot \
+	shell apishell celeryshell dbshell build force_build run stop test restart_api collectstatic
 
 .EXPORT_ALL_VARIABLES:
 UID=$(shell id -u)
@@ -34,8 +51,18 @@ initssl:
 	$(COMPOSE_INIT) up cybercom_openssl_init
 	$(COMPOSE_INIT) down
 
+cert_dates:
+	# Show valid date ranges for backend ssl certificates
+	@$(COMPOSE_INIT) run --rm cybercom_openssl_init openssl x509 -noout -dates -in /ssl/server/cert.pem
+
 superuser:
-	@docker-compose run --rm cybercom_api ./manage.py createsuperuser 
+	@$(DJANGO_MANAGE) createsuperuser 
+
+migrate:
+	@$(DJANGO_MANAGE) migrate
+
+flush:
+	@$(DJANGO_MANAGE) flush
 
 init_certbot:
 	$(CERTBOT_INIT) build
@@ -44,22 +71,25 @@ init_certbot:
 
 renew_certbot:
 	$(CERTBOT_INIT) run --rm cybercom_certbot
-	# FIXME: the following is not reloading certs
-	#@docker-compose exec cybercom_nginx nginx -s reload
-	# This is a work around until the reload signal is fixed
-	@docker-compose restart cybercom_nginx
+	# This requires an init process running in the container
+	# https://docs.docker.com/compose/compose-file/compose-file-v3/#init
+	@$(COMPOSE) exec cybercom_nginx nginx -s reload
 
 shell:
 	@echo "Loading new shell with configured environment"
-	@$$SHELL
+	@$(SHELL)
 
 apishell:
 	@echo "Launching shell into Django"
-	@docker-compose exec cybercom_api python manage.py shell
+	@$(COMPOSE) exec cybercom_api python manage.py shell
+
+celeryshell:
+	@echo "Lanuching shell into Celery"
+	@$(COMPOSE) exec cybercom_celery celery shell
 
 dbshell:
 	@echo "Launching shell into MongoDB"
-	@docker-compose exec cybercom_mongo mongo admin \
+	@$(COMPOSE) exec cybercom_mongo mongosh  \
 		--tls \
 		--host cybercom_mongo \
 		--tlsCertificateKeyFile /ssl/client/mongodb.pem \
@@ -68,23 +98,23 @@ dbshell:
 		--password $$MONGO_PASSWORD
 
 build:
-	@docker-compose --compatibility build
+	@$(COMPOSE) --compatibility build
 
 force_build:
-	@docker-compose --compatibility build --no-cache
+	@$(COMPOSE) --compatibility build --no-cache
 
 run:
-	@docker-compose --compatibility up -d
+	@$(COMPOSE) --compatibility up -d
 
 stop:
-	@docker-compose --compatibility down
+	@$(COMPOSE) --compatibility down
 
 test:
-	@docker-compose exec cybercom_api python -Wa manage.py test
+	@$(COMPOSE) exec cybercom_api python -Wa manage.py test
 
 restart_api:
-	@docker-compose restart cybercom_api
+	@$(COMPOSE) restart cybercom_api
 
-collectstatic:
-	@docker-compose run --rm cybercom_api ./manage.py collectstatic --noinput
-
+collectstatic: 
+	@mkdir -p web/static
+	@$(COMPOSE) run --rm cybercom_api ./manage.py collectstatic --noinput

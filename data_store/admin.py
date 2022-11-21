@@ -34,7 +34,7 @@ def setpermissions(app_label,codename,name):
 db = app.backend.database.client
 for database in db.list_database_names():
     if not (database in config.DATA_STORE_EXCLUDE):
-        for col in db[database].collection_names():
+        for col in db[database].list_collection_names():
             if not (col in config.DATA_STORE_EXCLUDE):
                 for method in [('post','ADD'),('put','UPDATE'),('delete','DELETE'),('safe','SAFE METHODS')]:
                     codename= "{0}_{1}_{2}".format(database,col,method[0])

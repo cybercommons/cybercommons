@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # This script is called inside a mongo container to create / udpate user account
+# See Mongodb's documentation for more details: 
+# https://www.mongodb.com/docs/manual/tutorial/configure-scram-client-authentication/
+
 
 /usr/bin/mongod &
 
@@ -9,31 +12,30 @@ sleep 5
 if [ ! -z ${MONGO_ADMIN_USERNAME+x} ]
   then
     echo "<<<<<<<<<< Adding Admin User >>>>>>>>>"
-    mongo admin --eval "db.createUser({ user: '$MONGO_ADMIN_USERNAME', pwd: '$MONGO_ADMIN_PASSWORD', roles: [ { role: '$MONGO_ADMIN_ROLE', db: 'admin' } ] });"
+    mongosh admin --eval "db.createUser({ user: '$MONGO_ADMIN_USERNAME', pwd: '$MONGO_ADMIN_PASSWORD', roles: [ { role: '$MONGO_ADMIN_ROLE', db: 'admin' } ] });"
 
     if [ $? == 252 ]
       then
         echo "<<<<<<<<<< Admin User Exists - Updating >>>>>>>>>" 
-        mongo admin --eval "db.updateUser('$MONGO_ADMIN_USERNAME', { pwd: '$MONGO_ADMIN_PASSWORD', roles: [ { role: '$MONGO_ADMIN_ROLE', db: 'admin' } ] });"
+        mongosh admin --eval "db.updateUser('$MONGO_ADMIN_USERNAME', { pwd: '$MONGO_ADMIN_PASSWORD', roles: [ { role: '$MONGO_ADMIN_ROLE', db: 'admin' } ] });"
     fi
 fi
 
 echo "<<<<<<<<<< Adding Mongo User >>>>>>>>>"
-mongo admin --eval "db.createUser({ user: '$MONGO_USERNAME', pwd: '$MONGO_PASSWORD', roles: [ { role: 'dbAdminAnyDatabase', db: 'admin' }, { role: 'readWriteAnyDatabase', db: 'admin' } ] });"
+mongosh admin --eval "db.createUser({ user: '$MONGO_USERNAME', pwd: '$MONGO_PASSWORD', roles: [ { role: 'dbAdminAnyDatabase', db: 'admin' }, { role: 'readWriteAnyDatabase', db: 'admin' } ] });"
 
 if [ $? == 252 ]
   then
     echo "<<<<<<<<<< User Already Exists - Updating >>>>>>>>>" 
-    mongo admin --eval "db.updateUser('$MONGO_USERNAME', { pwd: '$MONGO_PASSWORD', roles: [ { role: 'dbAdminAnyDatabase', db: 'admin' }, { role: 'readWriteAnyDatabase', db: 'admin' } ] });"
+    mongosh admin --eval "db.updateUser('$MONGO_USERNAME', { pwd: '$MONGO_PASSWORD', roles: [ { role: 'dbAdminAnyDatabase', db: 'admin' }, { role: 'readWriteAnyDatabase', db: 'admin' } ] });"
 fi
 
 echo "<<<<<<<<<< Adding User to Celery Collection >>>>>>>>>"
-mongo "$MONGO_DB" --eval "db.createUser({ user: '$MONGO_USERNAME', pwd: '$MONGO_PASSWORD', roles: ['readWrite','dbAdmin']})"
-
+mongosh $MONGO_DB --eval "db.createUser({ user: '$MONGO_USERNAME', pwd: '$MONGO_PASSWORD', roles: ['readWrite','dbAdmin']})"
 if [ $? == 252 ]
   then
     echo "<<<<<<<<<< User Already Exists - Updating >>>>>>>>>" 
-    mongo "$MONGO_DB" --eval "db.updateUser('$MONGO_USERNAME', { pwd: '$MONGO_PASSWORD', roles: ['readWrite','dbAdmin']})"
+    mongosh $MONGO_DB --eval "db.updateUser('$MONGO_USERNAME', { pwd: '$MONGO_PASSWORD', roles: ['readWrite','dbAdmin']})"
 fi
 
 /usr/bin/mongod --shutdown

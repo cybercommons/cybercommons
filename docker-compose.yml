@@ -2,12 +2,13 @@ version: "3.7"
 services:
   cybercom_nginx:
     image: nginx:${NGINX_VERSION}
+    init: true
     restart: unless-stopped
     expose:
       - 80
       - 443
     ports:
-      - 80:80
+      - ${GITPOD_PORT:-80}:80
       - 443:443
     depends_on:
       - cybercom_api
@@ -85,6 +86,11 @@ services:
     env_file:
       - dc_config/cybercom_config.env
       - dc_config/secrets.env
+    environment:
+      - GITPOD_WORKSPACE_ID
+      - GITPOD_WORKSPACE_CLUSTER_HOST
+      - GITPOD_PORT
+      - ALLOWED_HOSTS
     volumes:
       - ./dc_config/ssl/backend:/ssl
       - ./db.sqlite3:/app/db.sqlite3

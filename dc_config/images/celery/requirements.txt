@@ -1,2 +1,2 @@
-celery==5.2.2
+celery==5.2.7
 pymongo==3.12.3

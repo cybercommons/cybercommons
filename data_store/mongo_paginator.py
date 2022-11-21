@@ -9,6 +9,7 @@ from operator import itemgetter
 
 from collections import OrderedDict
 from rest_framework.templatetags.rest_framework import replace_query_param
+from pymongo import MongoClient
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ def MongoAggregate(aggregate, DB_MongoClient, database, collection, query=None):
     try:
         aggregate = json.loads(aggregate)
         if query:
-            aggregate.insert(0, query)
+            aggregate.insert_one(0, query)
     except:
         raise Exception("Aggregate: JSON object could be decoded")
 
@@ -67,6 +68,7 @@ def MongoGroupby(variable,groupby,DB_MongoClient, database, collection, query=No
             raise Exception("Query: JSON object could be decoded")
     db = DB_MongoClient[database][collection]
     reducer = Code(" function(obj,prev) {prev.Sum += obj.%s;prev.count+=1; prev.Avg = prev.Sum/prev.count;}" % (variable))
+    # FIXME: group is replaced by aggregate - https://www.mongodb.com/docs/upcoming/reference/operator/aggregation/group/
     results = db.group(groupby,query,{'Sum':0,'Avg':0,'count':0,'Variable':variable},reducer)
     data_out=[]
     try:
@@ -122,13 +124,13 @@ def MongoDataPagination(DB_MongoClient, database, collection, query=None, page=1
         except:
             raise Exception("Query: JSON object could be decoded")
 
-        count = db[database][collection].find(**query).count()
+        count = db[database][collection].count_documents(**query)
         #set page variables
         page,offset,max_page = set_pagination_vars(count,page,nPerPage)
         #Data
         data = [row for row in db[database][collection].find(**query).skip(offset).limit(nPerPage)]
     else:
-        count = db[database][collection].find().count()
+        count = db[database][collection].estimated_document_count()
         #set page variables
         page,offset,max_page = set_pagination_vars(count,page,nPerPage)
         #Data
@@ -145,19 +147,26 @@ def MongoDataPagination(DB_MongoClient, database, collection, query=None, page=1
         od = OrderedDict(sorted(result.items()))
     return od
 
+# FIXME: combine update and insert to handle one or many records and with or without _id
 def MongoDataInsert(DB_MongoClient, database, collection,data):
     db = DB_MongoClient
     #Update if data already in collection
     # if '_id' in data:
     #     id=data['_id']
     #     return MongoDataSave(DB_MongoClient, database, collection,id,data)
-    #return db[database][collection].insert(data)
+    #return db[database][collection].insert_one(data)
     if type(data) == type([]):
         #print(dir(db[database][collection]))
         return db[database][collection].insert_many(data)
     else:
         return db[database][collection].insert_one(data)
-    
+
+def MongoDataUpdate(DB_MongoClient: MongoClient, database: str, collection: str, data: dict) -> str:
+    _id = data.get("_id")
+    if _id and isinstance(_id, ObjectId):
+        DB_MongoClient[database][collection].update_one({"_id": _id}, {"$set": data})
+        return str(_id)
+
 def MongoDataGet(DB_MongoClient, database, collection,id):
     db = DB_MongoClient
     term_id=get_id(id)
@@ -165,6 +174,7 @@ def MongoDataGet(DB_MongoClient, database, collection,id):
     if not data:
         data = {"Error":"DATA RECORD NOT FOUND"}
     return data
+
 def MongoDataDelete(DB_MongoClient, database, collection,id):
     db = DB_MongoClient
     term_id=get_id(id)
@@ -173,13 +183,10 @@ def MongoDataDelete(DB_MongoClient, database, collection,id):
         return result
     else:
         return {"Error":"UNABLE TO DELETE: DATA RECORD NOT FOUND"}
+
 def MongoDataSave(DB_MongoClient, database, collection,id,data):
-    db = DB_MongoClient
-    term_id=get_id(id)
-    if db[database][collection].find_one({'_id':term_id}):
-        return db[database][collection].save(data)
-    else:
-        return {"Error":"UNABLE TO UPDATE: DATA RECORD NOT FOUND"}
+    data["_id"] = ObjectId(id) if not data.get("_id") else ObjectId(data["_id"])
+    return MongoDataUpdate(DB_MongoClient, database, collection, data)
 
 def is_number(n):
     try:

@@ -1,0 +1,26 @@
+tasks:
+  - name: cyberCommons
+    before: cp dc_config/secrets_template.env dc_config/secrets.env
+    init: |
+      make init &&
+      make build &&
+      make collectstatic
+    command: make run 
+    
+# Ports to expose on workspace startup
+ports:
+  - port: 8080
+    onOpen: open-preview
+    visibility: private
+  - port: 443
+    onOpen: ignore
+  - port: 5671
+    onOpen: ignore
+  - port: 27017
+    onOpen: ignore
+
+vscode:
+  extensions:
+    - ms-python.python
+    - eamodio.gitlens
+    - ms-azuretools.vscode-docker
